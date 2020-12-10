@@ -2,3 +2,7 @@
 
 ![](taller_pira.png)
  
+![](miles_logos.png)
+ 
+ 
+ [Prácica](Piramides.md)
