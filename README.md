@@ -5,4 +5,4 @@
 ![](miles_logos.png)
  
  
- [Prácica](Piramides.md)
+ [Práctica](Piramides.md)
