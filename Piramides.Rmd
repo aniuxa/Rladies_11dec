@@ -1,0 +1,337 @@
+---
+title: "Pirámides"
+author: "Ana Escoto"
+date: "11/12/2020"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r echo=FALSE}
+setwd("/Users/anaescoto/Dropbox/2020/Rladies_11dec")
+```
+
+![](logo_GRANDE.png)
+
+![](miles_logos.png)
+
+<https://sites.google.com/politicas.unam.mx/inv-aplicada/>
+
+
+
+# Previo
+
+## Paquetería
+
+```{r}
+if (!require("pacman")) install.packages("pacman") # instala pacman si se requiere
+pacman::p_load(tidyverse, 
+               haven, #lectura de datos .sav y .dta
+               janitor, skimr, #limpieza y verificación
+               apyramid) # Para hacer pirámides
+
+```
+
+
+## Base 
+Vamos a trabajar con las proyecciones de CONAPO. No son microdatos, sino que están agregados. 
+
+```{r}
+pob_mit_proyecciones <- read.csv("https://github.com/aniuxa/R_Demo/raw/master/datos/pob_mit_proyecciones.csv", encoding = "latin1")
+
+```
+
+Son las poblaciones a mitad de julio de CONAPO: <http://www.conapo.gob.mx/work/models/CONAPO/Datos_Abiertos/Proyecciones2018/pob_mit_proyecciones.csv>
+
+Vamos a limpiar los nombres:
+
+```{r}
+pob_mit_proyecciones<-clean_names(pob_mit_proyecciones)
+```
+
+Base de ECOVID - ML
+```{r}
+ecovid0420 <- read_dta("https://github.com/aniuxa/R_Demo/raw/master/datos/ecovid0420.dta")
+```
+
+# Pirámides con datos agregados
+
+Revisemos esta base de datos de las proyecciones de población.
+```{r}
+skimr::skim(pob_mit_proyecciones)
+```
+
+
+## Edad y sexo
+
+La edad y sexo son de las variables más importantes en la demografía para explicar la estructura de una población. Las pirámides son parte esencial de lo que llamamos "Demografía estática"
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>% 
+  count(edad, sexo, wt=poblacion)
+  
+```
+
+
+Podemos pensar en las pirámides como un doble histograma
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>% 
+  ggplot(
+    aes(edad, weight=poblacion)
+  ) + geom_histogram(binwidth = 5)
+```
+
+Tendríamos que darle la vuelta para verle más el parecido
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>% 
+  ggplot(
+    aes(edad, weight=poblacion)
+  ) + geom_histogram(binwidth = 5)  + # verificar el ancho de clase
+  coord_flip()
+```
+
+
+## Los grupos quinquenales, sí que sí
+
+Si queremos hacerlo como gráficos de barra, seguramente queremos cortar la variable de edad. Igual este paso es esencial en la vida demográfica:
+
+```{r}
+
+pob_mit_proyecciones<-pob_mit_proyecciones %>% 
+  mutate(eda5=cut(edad, # la variable a cortar
+                  breaks=seq(0,110, # El rango válido
+                             by=5), # El ancho del intervalo
+                  include.lowest=T, # para que incluya el valor más bajo dentro del intervalo
+                  right=F)) # indica si el intervalo irá abierto en la derecha, ponemos un no con "FALSE"
+
+```
+Veamos esta variable:
+
+```{r}
+pob_mit_proyecciones %>% count(eda5, wt=poblacion)
+```
+
+
+```{r}
+
+### gráfico de barras de edades quinquenales
+pob_mit_proyecciones %>%   
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>% 
+  ggplot(aes(eda5, weights=poblacion))+
+    geom_bar() # dibuja la geometría de barra
+
+```
+
+
+## La primera pirámide
+
+Una pirámide es un histograma por sexo, donde el valor de los hombres es negativo:
+
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>% 
+  mutate(poblacion=if_else(sexo=="Hombres", -poblacion, poblacion)) %>% 
+  ggplot(aes(eda5, fill=sexo, weights=poblacion))+
+    geom_bar() # dibuja la geometría de barra
+
+```
+
+Podemos darle la vuelta y cambiarle los colores
+
+```{r}
+pob_mit_proyecciones<-pob_mit_proyecciones %>% 
+  mutate(poblacion2=if_else(sexo=="Hombres", -poblacion, poblacion))
+
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%  
+  ggplot(aes(eda5, fill=sexo, weights=poblacion2))+
+    geom_bar() + coord_flip() +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+
+
+```
+
+Como que las escalas tampoco están muy perfectas y no queremos las negativa.¡Los hombres no son personas negativas!
+
+Veamos un poco cómo se comporta esa variable:
+
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%  
+  count(eda5, sexo, wt=poblacion2) %>% 
+  summarise(max=max(n), min=min(n))
+
+```
+
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%  
+  ggplot(aes(eda5, fill=sexo, weights=poblacion2))+
+    geom_bar() + coord_flip() +
+   scale_y_continuous(breaks = seq(-6000000, 6000000, by=1000000), # cuántos 
+                      limits = c(-6000000,6000000),
+                      labels = paste0(
+                       as.character(c(6:0,# sustituye negativos
+                         1:6) # Para lo positivo 
+                         ) 
+                       ) 
+                      )+ 
+  labs(y="Poblacion - millones", x="Grupos de edad") +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+
+
+```
+
+Esto es para el volumen de la población ¿Cómo podemos hacer una pirámide que sea en términos de proporciones?
+
+Vamos a necesitar el total de la población:
+
+```{r}
+pob_mit_proyecciones<-pob_mit_proyecciones %>% 
+  group_by(cve_geo, ano) %>% 
+  mutate(p_edo=sum(poblacion)) %>% 
+  ungroup()
+
+head(pob_mit_proyecciones)
+```
+
+Hoy sí haremos lo mismo pero para las proporciones:
+
+```{r}
+pob_mit_proyecciones<-pob_mit_proyecciones %>% 
+  mutate(poblacion3=if_else(sexo=="Hombres", -poblacion/p_edo, poblacion/p_edo))
+
+```
+
+Una vez que ya tenemos nuestra variable proporcional:
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%  
+  ggplot(aes(eda5, fill=sexo, weights=poblacion3))+
+    geom_bar() + coord_flip() +
+   scale_y_continuous(labels = scales::percent_format(accuracy=0.01))+ 
+  labs(y="Poblacion - %", x="Grupos de edad") +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+
+
+```
+
+Podemos hacer varias pirámides aplicando facets o grids:
+
+
+```{r}
+pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano%in%seq(2020,2050, by=10)) %>%  
+  ggplot(aes(eda5, fill=sexo, weights=poblacion3))+
+    geom_bar() + coord_flip() +
+   scale_y_continuous(labels = scales::percent_format(accuracy=0.01))+ 
+  labs(y="Poblacion - %", x="Grupos de edad") +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  +
+  facet_wrap(~ano)
+
+
+```
+
+# Función propia
+Así que podemos hacer una función de pirámide:
+
+```{r}
+piramide<-function(ent, ano) {
+ x<-ent
+ a<-ano 
+  pob_mit_proyecciones %>% 
+    filter(cve_geo==x) %>% 
+    filter(ano==a) %>%  
+    ggplot(aes(eda5, fill=sexo, weights=poblacion3))+
+    geom_bar() + coord_flip() +
+    scale_y_continuous(labels = scales::percent_format(accuracy=0.01))+ 
+    labs(y="Poblacion - %", x="Grupos de edad") +
+    scale_fill_brewer(palette = "Set2") + 
+    theme_light()    
+}
+```
+
+Veamos si funciona:
+
+```{r}
+piramide(1, 1990)
+piramide(12, 2050)
+
+```
+
+# Pirámides con bases de datos no agrupadas 
+
+Vamos a hacer un ejemplo de edad simple, y de cómo hacemos cuando los datos no están agrupados. Lo más fácil para volver negativos a los hombres es crear una nueva variable
+
+```{r}
+ecovid0420 %>% 
+  mutate(dummy=if_else(pb1==1,
+                       -1,
+                       1)) %>% 
+  ggplot(aes(pb2, 
+             fill=as_label(pb1), 
+             weights=dummy))+
+    geom_histogram(binwidth = 5) + coord_flip() 
+
+```
+
+# Paquete "apyramid"
+
+Necesita que tengamos los datos quinquenales
+No acepta funciones en las variables edad y sexo
+
+```{r}
+pira <- pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%
+  age_pyramid(eda5, # edad
+              split_by = sexo,
+              count=poblacion) # sexo
+
+pira + theme_minimal()
+
+```
+Nos ahorra un par de pasos, pero siempre tenemos que solucionar algunos elemtnos
+
+
+```{r}
+pira <- pob_mit_proyecciones %>% 
+  filter(cve_geo==0) %>% 
+  filter(ano==2020) %>%
+  age_pyramid(eda5, # edad
+              split_by = sexo,
+              count=poblacion) # sexo
+
+pira + theme_minimal()
+
+```
+
