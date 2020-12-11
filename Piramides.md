@@ -41,13 +41,13 @@ Son las poblaciones a mitad de julio de CONAPO:
 Vamos a limpiar los nombres:
 
 ``` r
-pob_mit_proyecciones<-clean_names(pob_mit_proyecciones)
+pob_mit_proyecciones<-janitor::clean_names(pob_mit_proyecciones)
 ```
 
 Base de ECOVID - ML
 
 ``` r
-ecovid0420 <- read_dta("https://github.com/aniuxa/R_Demo/raw/master/datos/ecovid0420.dta")
+ecovid0420 <- haven::read_dta("https://github.com/aniuxa/R_Demo/raw/master/datos/ecovid0420.dta")
 ```
 
 # Pirámides con datos agregados
@@ -97,9 +97,9 @@ esencial de lo que llamamos “Demografía estática”
 
 ``` r
 pob_mit_proyecciones %>% 
-  filter(cve_geo==0) %>% 
-  filter(ano==2020) %>% 
-  count(edad, sexo, wt=poblacion)
+  dplyr::filter(cve_geo==0) %>% 
+  dplyr::filter(ano==2020) %>% 
+  dplyr::count(edad, sexo, wt=poblacion)
 ```
 
     ##     edad    sexo       n
@@ -343,10 +343,10 @@ Tendríamos que darle la vuelta para verle más el parecido
 pob_mit_proyecciones %>% 
   filter(cve_geo==0) %>% 
   filter(ano==2020) %>% 
-  ggplot(
-    aes(edad, weight=poblacion)
-  ) + geom_histogram(binwidth = 5)  + # verificar el ancho de clase
-  coord_flip()
+  ggplot2::ggplot(
+      aes(edad, weight=poblacion)
+    ) + geom_histogram(binwidth = 5)  + # verificar el ancho de clase
+    coord_flip()
 ```
 
 ![](Piramides_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
@@ -426,7 +426,10 @@ Podemos darle la vuelta y cambiarle los colores
 
 ``` r
 pob_mit_proyecciones<-pob_mit_proyecciones %>% 
-  mutate(poblacion2=if_else(sexo=="Hombres", -poblacion, poblacion))
+  dplyr::mutate(poblacion2=
+                  if_else(sexo=="Hombres",
+                          -poblacion,
+                          poblacion))
 
 pob_mit_proyecciones %>% 
   filter(cve_geo==0) %>% 
@@ -434,7 +437,7 @@ pob_mit_proyecciones %>%
   ggplot(aes(eda5, fill=sexo, weights=poblacion2))+
     geom_bar() + coord_flip() +
   scale_fill_brewer(palette = "Set2") + 
-  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+  theme_light() 
 ```
 
 ![](Piramides_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
@@ -471,7 +474,7 @@ pob_mit_proyecciones %>%
                       )+ 
   labs(y="Poblacion - millones", x="Grupos de edad") +
   scale_fill_brewer(palette = "Set2") + 
-  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+  theme_light()  
 ```
 
 ![](Piramides_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
@@ -518,7 +521,7 @@ pob_mit_proyecciones %>%
    scale_y_continuous(labels = scales::percent_format(accuracy=0.01))+ 
   labs(y="Poblacion - %", x="Grupos de edad") +
   scale_fill_brewer(palette = "Set2") + 
-  theme_light() +   theme(axis.text.x  =  element_text(angle = 90))  
+  theme_light()   
 ```
 
 ![](Piramides_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
@@ -604,7 +607,7 @@ variables edad y sexo
 pira <- pob_mit_proyecciones %>% 
   filter(cve_geo==0) %>% 
   filter(ano==2020) %>%
-  age_pyramid(eda5, # edad
+  apyramid::age_pyramid(eda5, # edad
               split_by = sexo,
               count=poblacion) # sexo
 
